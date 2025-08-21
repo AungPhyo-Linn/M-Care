@@ -5,7 +5,7 @@ import { sendEmail } from "../services/emailService";
 
 const router = Router();
 
-// Helper to normalize names for comparison
+// ---------------- Helper to normalize names for comparison ----------------
 const normalizeName = (name: string): string => {
   const normalized = name
     .replace(/^(mr|mrs|ms|dr)\.?/i, "")
@@ -16,7 +16,7 @@ const normalizeName = (name: string): string => {
   return normalized;
 };
 
-// Helper function for retrying API calls with exponential backoff
+// ---------------- Helper function for retrying API calls ----------------
 async function verifySlipWithRetry(
   refNbr: string,
   amount: number,
@@ -28,18 +28,24 @@ async function verifySlipWithRetry(
       console.log(
         `[DEBUG] Attempt ${attempt} - calling OpenSlipVerify API with refNbr=${refNbr}, amount=${amount}`
       );
+      console.log("[DEBUG] Token used:", token);
+
       const response = await axios.post(
-        "https://api.openslipverify.com/",
+        "https://api.openslipverify.com",
         { refNbr, amount: amount.toString(), token },
         { headers: { "Content-Type": "application/json" }, timeout: 5000 }
       );
+
+      // Log full response for debugging Render deployment
       console.log(`[DEBUG] Attempt ${attempt} - API response:`, response.data);
-      return response.data;
+      console.log("[DEBUG] Response headers:", response.headers);
+
+      return response.data; // data contains { success, statusMessage, data }
     } catch (err: any) {
       const axiosErr = err as AxiosError;
       console.warn(`[DEBUG] Attempt ${attempt} failed:`, axiosErr.message);
 
-      if (attempt === retries) throw err; // give up after last attempt
+      if (attempt === retries) throw err;
       const waitTime = attempt * 1000;
       console.log(`[DEBUG] Waiting ${waitTime}ms before retrying...`);
       await new Promise((r) => setTimeout(r, waitTime));
@@ -47,6 +53,7 @@ async function verifySlipWithRetry(
   }
 }
 
+// ---------------- Main verification route ----------------
 router.post("/", async (req: Request, res: Response) => {
   console.log("[DEBUG] Verification request received:", req.body);
 
@@ -90,18 +97,18 @@ router.post("/", async (req: Request, res: Response) => {
         .json({ status: "failed", message: "Reference number already used" });
     }
 
-    // Call OpenSlipVerify API with retry
+    // ---------------- Call OpenSlipVerify API ----------------
     const response = await verifySlipWithRetry(refNbr, amount, token);
 
-    if (response?.success !== true) {
+    if (!response || response.success !== true) {
       console.log("[DEBUG] Verification unsuccessful:", response);
       return res.status(400).json({
         status: "failed",
-        message: response?.msg || "Verification unsuccessful",
+        message: response?.statusMessage || "Verification unsuccessful",
       });
     }
 
-    console.log("[DEBUG] Verifying receiver name...");
+    // ---------------- Verify receiver name ----------------
     const receiver = response.data?.receiver;
     const normalizedExpectedName = normalizeName(expectedReceiverName);
     const normalizedReturnedName = normalizeName(receiver?.name || "");
@@ -121,6 +128,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
 
+    // ---------------- Find appointment ----------------
     console.log("[DEBUG] Finding appointment by bookingID:", bookingID);
     const appointment = await Appointment.findOne({ bookingId: bookingID });
     if (!appointment) {
@@ -130,6 +138,7 @@ router.post("/", async (req: Request, res: Response) => {
         .json({ status: "failed", message: "Appointment not found" });
     }
 
+    // ---------------- Update verification ----------------
     console.log("[DEBUG] Updating appointment verification status");
     appointment.paymentVerification = {
       status: "verified",
@@ -140,7 +149,7 @@ router.post("/", async (req: Request, res: Response) => {
     await appointment.save();
     console.log("[DEBUG] Appointment saved successfully");
 
-    // Send confirmation email
+    // ---------------- Send confirmation email ----------------
     try {
       const { userDetails, timeSlot, amount } = appointment;
       console.log("[DEBUG] Sending confirmation email to:", userDetails.email);
