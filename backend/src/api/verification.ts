@@ -30,7 +30,7 @@ async function verifySlipWithRetry(
       );
       const response = await axios.post(
         "https://api.openslipverify.com/v1/verify",
-        { refNbr, amount, token },
+        { refNbr, amount: amount.toString(), token },
         { headers: { "Content-Type": "application/json" }, timeout: 5000 }
       );
       console.log(`[DEBUG] Attempt ${attempt} - API response:`, response.data);
@@ -97,7 +97,7 @@ router.post("/", async (req: Request, res: Response) => {
       console.log("[DEBUG] Verification unsuccessful:", response);
       return res.status(400).json({
         status: "failed",
-        message: response?.statusMessage || "Verification unsuccessful",
+        message: response?.msg || "Verification unsuccessful",
       });
     }
 
