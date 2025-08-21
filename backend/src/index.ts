@@ -12,8 +12,6 @@ import appointmentsRoute from "./api/appointments";
 import appointmentAvailabilityRoutes from "./api/availability";
 
 // Import workers so they start automatically
-import "./services/verificationWorker";
-import "./services/emailWorker";
 
 const app = express();
 
