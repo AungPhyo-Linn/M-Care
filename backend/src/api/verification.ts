@@ -33,7 +33,14 @@ async function verifySlipWithRetry(
       const response = await axios.post(
         "https://api.openslipverify.com",
         { refNbr, amount: amount.toString(), token },
-        { headers: { "Content-Type": "application/json" }, timeout: 5000 }
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "User-Agent": "Thunder Client (https://www.thunderclient.io)",
+          },
+          timeout: 5000,
+        }
       );
 
       // Log full response for debugging Render deployment
