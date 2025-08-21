@@ -29,7 +29,7 @@ async function verifySlipWithRetry(
         `[DEBUG] Attempt ${attempt} - calling OpenSlipVerify API with refNbr=${refNbr}, amount=${amount}`
       );
       const response = await axios.post(
-        "https://api.openslipverify.com/v1/verify",
+        "https://api.openslipverify.com/",
         { refNbr, amount: amount.toString(), token },
         { headers: { "Content-Type": "application/json" }, timeout: 5000 }
       );
